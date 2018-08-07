@@ -1,9 +1,10 @@
+use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-static node_type_dir: &'static str = "dir";
-static node_type_file: &'static str = "file";
+static NODE_TYPE_DIR: &'static str = "dir";
+static NODE_TYPE_FILE: &'static str = "file";
 
 #[derive(Debug)]
 pub struct FileNode {
@@ -18,11 +19,11 @@ pub struct FileNode {
     pub human_size: String,
 
     pub parent: Option<Arc<FileNode>>,
-    pub dirs: Vec<Arc<FileNode>>,
-    pub files: Vec<Arc<FileNode>>,
+    pub dirs: RefCell<Vec<Arc<FileNode>>>,
+    pub files: RefCell<Vec<Arc<FileNode>>>,
 
-    pub images: Vec<Arc<FileNode>>,
-    pub children: Vec<Arc<FileNode>>,
+    pub images: RefCell<Vec<Arc<FileNode>>>,
+    pub children: RefCell<Vec<Arc<FileNode>>>,
 }
 
 pub fn new_file_node<'a>(
@@ -50,9 +51,9 @@ pub fn new_file_node<'a>(
             .unwrap()
             .to_owned(),
         node_type: if path.is_dir() {
-            String::from(node_type_dir)
+            String::from(NODE_TYPE_DIR)
         } else {
-            String::from(node_type_file)
+            String::from(NODE_TYPE_FILE)
         },
 
         size: get_file_size(&abs_path_str),
@@ -60,11 +61,11 @@ pub fn new_file_node<'a>(
         total_size: 0f64,
 
         parent: parent,
-        dirs: vec![],
-        files: vec![],
+        dirs: RefCell::new(vec![]),
+        files: RefCell::new(vec![]),
 
-        images: vec![],
-        children: vec![],
+        images: RefCell::new(vec![]),
+        children: RefCell::new(vec![]),
     };
 
     let rv_rc = Arc::new(rv);
@@ -87,15 +88,21 @@ pub fn new_file_node<'a>(
             ));
 
             if is_dir(&abs_path) {
-                rv_rc.children.push(Arc::clone(&child_file_node));
-                rv_rc.dirs.push(Arc::clone(&child_file_node));
+                rv_rc
+                    .children
+                    .borrow_mut()
+                    .push(Arc::clone(&child_file_node));
+                rv_rc.dirs.borrow_mut().push(Arc::clone(&child_file_node));
             } else if is_file(&abs_path) {
-                rv_rc.children.push(Arc::clone(&child_file_node));
-                rv_rc.files.push(Arc::clone(&child_file_node));
+                rv_rc
+                    .children
+                    .borrow_mut()
+                    .push(Arc::clone(&child_file_node));
+                rv_rc.files.borrow_mut().push(Arc::clone(&child_file_node));
 
                 match &*child_file_node.extension {
                     "jpg" | "jpeg" | "png" | "gif" | "bmp" => {
-                        rv_rc.images.push(Arc::clone(&child_file_node))
+                        rv_rc.images.borrow_mut().push(Arc::clone(&child_file_node))
                     }
                     _ => {}
                 }
@@ -106,17 +113,18 @@ pub fn new_file_node<'a>(
     rv.total_size = rv_rc.get_total_size();
     rv_rc
         .children
+        .borrow_mut()
         .sort_by(|a, b| a.total_size.partial_cmp(&b.total_size).unwrap());
     rv_rc
 }
 
 impl FileNode {
     fn get_total_size(&self) -> f64 {
-        if self.node_type == node_type_file {
+        if self.node_type == NODE_TYPE_FILE {
             self.size
         } else {
             let mut rv = 0f64;
-            for f in &self.files {
+            for f in self.files.borrow().iter() {
                 rv += f.get_total_size();
             }
             rv
