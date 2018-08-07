@@ -7,8 +7,8 @@ use std::sync::Arc;
 use super::fs::{exist_path, is_dir, is_file};
 use super::size::{get_file_human_size, get_file_size};
 
-static NODE_TYPE_DIR: &'static str = "dir";
-static NODE_TYPE_FILE: &'static str = "file";
+pub static NODE_TYPE_DIR: &'static str = "dir";
+pub static NODE_TYPE_FILE: &'static str = "file";
 
 #[derive(Debug)]
 pub struct FileNode {
@@ -75,7 +75,8 @@ pub fn new_file_node(
         total_size: Cell::new(0f64),
         human_size: RefCell::new(human_size),
 
-        parent: parent,
+        // TODO: ignore parent
+        parent: None,
         dirs: RefCell::new(vec![]),
         files: RefCell::new(vec![]),
 
