@@ -22,7 +22,6 @@ pub struct FileNode {
     pub total_size: Cell<f64>,
     pub human_size: RefCell<String>,
 
-    pub parent: Option<Arc<FileNode>>,
     pub dirs: RefCell<Vec<Arc<FileNode>>>,
     pub files: RefCell<Vec<Arc<FileNode>>>,
 
@@ -30,11 +29,7 @@ pub struct FileNode {
     pub children: RefCell<Vec<Arc<FileNode>>>,
 }
 
-pub fn new_file_node(
-    path_str: &String,
-    root: &String,
-    parent: Option<Arc<FileNode>>,
-) -> Option<Arc<FileNode>> {
+pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> {
     if !exist_path(path_str) {
         return None;
     }
@@ -49,6 +44,7 @@ pub fn new_file_node(
 
     let size = get_file_size(&abs_path_str);
     let human_size = get_file_human_size(&path_str);
+
     let rv = FileNode {
         name: path.file_name().unwrap().to_str().unwrap().to_owned(),
         extension: path
@@ -75,8 +71,6 @@ pub fn new_file_node(
         total_size: Cell::new(0f64),
         human_size: RefCell::new(human_size),
 
-        // TODO: ignore parent
-        parent: None,
         dirs: RefCell::new(vec![]),
         files: RefCell::new(vec![]),
 
@@ -92,14 +86,10 @@ pub fn new_file_node(
 
         let files = fs::read_dir(&abs_path_str).unwrap();
         for f in files {
-            let abs_path = path
-                .join(f.unwrap().file_name())
-                .to_str()
-                .unwrap()
-                .to_owned();
+            let name = &f.unwrap().file_name();
+            let abs_path = path.join(name).to_str().unwrap().to_owned();
 
-            let child_node =
-                new_file_node(&abs_path, &abs_path_str, Some(Arc::clone(&rv_rc))).unwrap();
+            let child_node = new_file_node(&abs_path, &abs_path_str).unwrap();
             let child_node_arc = Arc::new(child_node);
 
             if is_dir(&abs_path) {
