@@ -10,4 +10,5 @@ fn main() {
     ).unwrap();
     println!("{:?}", n.abs_path);
     println!("{:?}", n.rel_path);
+    println!("{:?}", n.total_size);
 }

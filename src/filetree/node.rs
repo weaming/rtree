@@ -1,8 +1,11 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+
+use super::fs::{exist_path, is_dir, is_file};
+use super::size::{get_file_human_size, get_file_size};
 
 static NODE_TYPE_DIR: &'static str = "dir";
 static NODE_TYPE_FILE: &'static str = "file";
@@ -15,9 +18,9 @@ pub struct FileNode {
     pub rel_path: String,
     pub node_type: String,
 
-    pub size: f64,
-    pub total_size: f64,
-    pub human_size: String,
+    pub size: Cell<f64>,
+    pub total_size: Cell<f64>,
+    pub human_size: RefCell<String>,
 
     pub parent: Option<Arc<FileNode>>,
     pub dirs: RefCell<Vec<Arc<FileNode>>>,
@@ -27,7 +30,7 @@ pub struct FileNode {
     pub children: RefCell<Vec<Arc<FileNode>>>,
 }
 
-pub fn new_file_node<'a>(
+pub fn new_file_node(
     path_str: &String,
     root: &String,
     parent: Option<Arc<FileNode>>,
@@ -44,7 +47,9 @@ pub fn new_file_node<'a>(
         .to_owned();
     let path = Path::new(&abs_path_str);
 
-    let mut rv = FileNode {
+    let size = get_file_size(&abs_path_str);
+    let human_size = get_file_human_size(&path_str);
+    let rv = FileNode {
         name: path.file_name().unwrap().to_str().unwrap().to_owned(),
         extension: path
             .extension()
@@ -66,9 +71,9 @@ pub fn new_file_node<'a>(
             String::from(NODE_TYPE_FILE)
         },
 
-        size: get_file_size(&abs_path_str),
-        human_size: get_file_human_size(&path_str),
-        total_size: 0f64,
+        size: Cell::new(size),
+        total_size: Cell::new(0f64),
+        human_size: RefCell::new(human_size),
 
         parent: parent,
         dirs: RefCell::new(vec![]),
@@ -81,7 +86,8 @@ pub fn new_file_node<'a>(
     let rv_rc = Arc::new(rv);
 
     if path.is_dir() {
-        rv.size = 0f64;
+        // iginore dir metadata space
+        rv_rc.size.set(0f64);
 
         let files = fs::read_dir(&abs_path_str).unwrap();
         for f in files {
@@ -118,7 +124,7 @@ pub fn new_file_node<'a>(
         }
     }
 
-    rv.total_size = rv_rc.get_total_size();
+    rv_rc.total_size.set(rv_rc.get_total_size());
     rv_rc
         .children
         .borrow_mut()
@@ -129,7 +135,7 @@ pub fn new_file_node<'a>(
 impl FileNode {
     fn get_total_size(&self) -> f64 {
         if self.node_type == NODE_TYPE_FILE {
-            self.size
+            self.size.get()
         } else {
             let mut rv = 0f64;
             for f in self.files.borrow().iter() {
@@ -138,49 +144,4 @@ impl FileNode {
             rv
         }
     }
-}
-
-pub fn get_file_size(path: &str) -> f64 {
-    let fi = fs::metadata(path).unwrap();
-    fi.len() as f64
-}
-
-pub fn get_file_human_size(path: &str) -> String {
-    let size = get_file_size(path);
-    human_size(size, 1024f64)
-}
-
-pub fn human_size(mut s: f64, factor: f64) -> String {
-    let mut unit = "B";
-    if s > factor {
-        s /= factor;
-        unit = "KB";
-    }
-    if s > factor {
-        s /= factor;
-        unit = "MB";
-    }
-    if s > factor {
-        s /= factor;
-        unit = "GB";
-    }
-    if s > factor {
-        s /= factor;
-        unit = "TB";
-    }
-    format!("{}{}", s, unit)
-}
-
-pub fn is_dir(path: &String) -> bool {
-    let p = Path::new(&path);
-    p.is_dir()
-}
-
-pub fn is_file(path: &String) -> bool {
-    let p = Path::new(&path);
-    p.is_file()
-}
-
-pub fn exist_path(path: &String) -> bool {
-    Path::new(path).exists()
 }
