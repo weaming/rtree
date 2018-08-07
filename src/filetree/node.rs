@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -30,7 +31,11 @@ pub fn new_file_node<'a>(
     path_str: &String,
     root: &String,
     parent: Option<Arc<FileNode>>,
-) -> Arc<FileNode> {
+) -> Option<Arc<FileNode>> {
+    if !exist_path(path_str) {
+        return None;
+    }
+
     let abs_path_str = Path::new(&path_str)
         .canonicalize()
         .unwrap()
@@ -41,11 +46,16 @@ pub fn new_file_node<'a>(
 
     let mut rv = FileNode {
         name: path.file_name().unwrap().to_str().unwrap().to_owned(),
-        extension: path.extension().unwrap().to_str().unwrap().to_owned(),
+        extension: path
+            .extension()
+            .unwrap_or(OsStr::new(""))
+            .to_str()
+            .unwrap()
+            .to_owned(),
         abs_path: String::from(&*abs_path_str),
         rel_path: path
             .strip_prefix(root)
-            .unwrap()
+            .unwrap_or(Path::new(""))
             .to_owned()
             .to_str()
             .unwrap()
@@ -81,28 +91,26 @@ pub fn new_file_node<'a>(
                 .unwrap()
                 .to_owned();
 
-            let child_file_node = Arc::new(new_file_node(
-                &abs_path,
-                &abs_path_str,
-                Some(Arc::clone(&rv_rc)),
-            ));
+            let child_node =
+                new_file_node(&abs_path, &abs_path_str, Some(Arc::clone(&rv_rc))).unwrap();
+            let child_node_arc = Arc::new(child_node);
 
             if is_dir(&abs_path) {
                 rv_rc
                     .children
                     .borrow_mut()
-                    .push(Arc::clone(&child_file_node));
-                rv_rc.dirs.borrow_mut().push(Arc::clone(&child_file_node));
+                    .push(Arc::clone(&child_node_arc));
+                rv_rc.dirs.borrow_mut().push(Arc::clone(&child_node_arc));
             } else if is_file(&abs_path) {
                 rv_rc
                     .children
                     .borrow_mut()
-                    .push(Arc::clone(&child_file_node));
-                rv_rc.files.borrow_mut().push(Arc::clone(&child_file_node));
+                    .push(Arc::clone(&child_node_arc));
+                rv_rc.files.borrow_mut().push(Arc::clone(&child_node_arc));
 
-                match &*child_file_node.extension {
+                match &*child_node_arc.extension {
                     "jpg" | "jpeg" | "png" | "gif" | "bmp" => {
-                        rv_rc.images.borrow_mut().push(Arc::clone(&child_file_node))
+                        rv_rc.images.borrow_mut().push(Arc::clone(&child_node_arc))
                     }
                     _ => {}
                 }
@@ -115,7 +123,7 @@ pub fn new_file_node<'a>(
         .children
         .borrow_mut()
         .sort_by(|a, b| a.total_size.partial_cmp(&b.total_size).unwrap());
-    rv_rc
+    Some(rv_rc)
 }
 
 impl FileNode {
@@ -163,12 +171,16 @@ pub fn human_size(mut s: f64, factor: f64) -> String {
     format!("{}{}", s, unit)
 }
 
-fn is_dir(path: &String) -> bool {
+pub fn is_dir(path: &String) -> bool {
     let p = Path::new(&path);
     p.is_dir()
 }
 
-fn is_file(path: &String) -> bool {
+pub fn is_file(path: &String) -> bool {
     let p = Path::new(&path);
     p.is_file()
+}
+
+pub fn exist_path(path: &String) -> bool {
+    Path::new(path).exists()
 }
