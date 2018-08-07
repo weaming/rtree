@@ -1,11 +1,12 @@
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
-const node_type_dir: String = String::from("dir");
-const node_type_file: String = String::from("file");
+static node_type_dir: &'static str = "dir";
+static node_type_file: &'static str = "file";
 
 #[derive(Debug)]
-pub struct FileNode<'a> {
+pub struct FileNode {
     pub name: String,
     pub extension: String,
     pub abs_path: String,
@@ -16,31 +17,31 @@ pub struct FileNode<'a> {
     pub total_size: f64,
     pub human_size: String,
 
-    pub parent: Option<&'a FileNode<'a>>,
-    pub dirs: Vec<&'a FileNode<'a>>,
-    pub files: Vec<&'a FileNode<'a>>,
+    pub parent: Option<Arc<FileNode>>,
+    pub dirs: Vec<Arc<FileNode>>,
+    pub files: Vec<Arc<FileNode>>,
 
-    pub images: Vec<&'a FileNode<'a>>,
-    pub children: Vec<&'a FileNode<'a>>,
+    pub images: Vec<Arc<FileNode>>,
+    pub children: Vec<Arc<FileNode>>,
 }
 
 pub fn new_file_node<'a>(
     path_str: String,
     root: String,
-    parent: Option<&FileNode>,
-) -> FileNode<'a> {
-    path_str = Path::new(&path_str)
+    parent: Option<Arc<FileNode>>,
+) -> Arc<FileNode> {
+    let abs_path_str = Path::new(&path_str)
         .canonicalize()
         .unwrap()
         .to_str()
         .unwrap()
         .to_owned();
-    let path = Path::new(&path_str);
+    let path = Path::new(&abs_path_str);
 
     let mut rv = FileNode {
         name: path.file_name().unwrap().to_str().unwrap().to_owned(),
         extension: path.extension().unwrap().to_str().unwrap().to_owned(),
-        abs_path: path_str,
+        abs_path: String::from(&*abs_path_str),
         rel_path: path
             .strip_prefix(root)
             .unwrap()
@@ -49,12 +50,12 @@ pub fn new_file_node<'a>(
             .unwrap()
             .to_owned(),
         node_type: if path.is_dir() {
-            node_type_dir
+            String::from(node_type_dir)
         } else {
-            node_type_file
+            String::from(node_type_file)
         },
 
-        size: get_file_size(&path_str),
+        size: get_file_size(&abs_path_str),
         human_size: get_file_human_size(&path_str),
         total_size: 0f64,
 
@@ -66,24 +67,31 @@ pub fn new_file_node<'a>(
         children: vec![],
     };
 
+    let rv_rc = Arc::new(rv);
     if path.is_dir() {
         rv.size = 0f64;
 
-        let files = fs::read_dir(path_str).unwrap();
+        let files = fs::read_dir(&abs_path_str).unwrap();
         for f in files {
             let abs_path = path.join(f.unwrap().file_name()).to_str().unwrap();
 
-            let child_file_node = new_file_node(String::from(abs_path), path_str, Some(&rv));
+            let child_file_node = Arc::new(new_file_node(
+                String::from(abs_path),
+                String::from(&*abs_path_str),
+                Some(Arc::clone(&rv_rc)),
+            ));
 
             if is_dir(abs_path) {
-                rv.children.append(&mut child_file_node);
-                rv.dirs.append(child_file_node);
+                rv.children.push(Arc::clone(&child_file_node));
+                rv.dirs.push(Arc::clone(&child_file_node));
             } else if is_file(abs_path) {
-                rv.children.append(child_file_node);
-                rv.files.append(child_file_node);
+                rv.children.push(Arc::clone(&child_file_node));
+                rv.files.push(Arc::clone(&child_file_node));
 
                 match &*child_file_node.extension {
-                    "jpg" | "jpeg" | "png" | "gif" | "bmp" => rv.images.append(child_file_node),
+                    "jpg" | "jpeg" | "png" | "gif" | "bmp" => {
+                        rv.images.push(Arc::clone(&child_file_node))
+                    }
                     _ => {}
                 }
             }
@@ -93,16 +101,16 @@ pub fn new_file_node<'a>(
     rv.total_size = rv.get_total_size();
     rv.children
         .sort_by(|a, b| a.total_size.partial_cmp(&b.total_size).unwrap());
-    rv
+    rv_rc
 }
 
-impl<'a> FileNode<'a> {
+impl FileNode {
     fn get_total_size(&self) -> f64 {
         if self.node_type == node_type_file {
             self.size
         } else {
-            let rv = 0f64;
-            for f in self.files {
+            let mut rv = 0f64;
+            for f in &self.files {
                 rv += f.get_total_size();
             }
             rv
