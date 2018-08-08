@@ -129,7 +129,7 @@ impl FileNode {
             self.size.get()
         } else {
             let mut rv = 0f64;
-            for f in self.files.borrow().iter() {
+            for f in self.children.borrow().iter() {
                 rv += f.get_total_size();
             }
             rv
