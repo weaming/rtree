@@ -89,7 +89,7 @@ pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> 
             let name = &f.unwrap().file_name();
             let abs_path = path.join(name).to_str().unwrap().to_owned();
 
-            let child_node = new_file_node(&abs_path, &abs_path_str).unwrap();
+            let child_node = new_file_node(&abs_path, root).unwrap();
             let child_node_arc = Arc::new(child_node);
 
             if is_dir(&abs_path) {
