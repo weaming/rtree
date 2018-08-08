@@ -39,6 +39,10 @@ pub fn print_file_node_tree(
         );
 
         if x.node_type == NODE_TYPE_DIR && depth < level {
+            if x.name.chars().next().unwrap() == '.' {
+                continue;
+            }
+
             prefix.pop();
             // last
             if i + 1 == n_children {
@@ -73,7 +77,7 @@ pub fn print_file_node_simplely(node: &FileNode, depth: u64, level: u64, human: 
         print_node(x, human, depth);
 
         if x.node_type == NODE_TYPE_DIR && depth < level {
-            if x.name[0..1] == *"." {
+            if x.name.chars().next().unwrap() == '.' {
                 continue;
             }
 
