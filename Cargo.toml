@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["weaming <garden.yuen@gmail.com>"]
 
 [dependencies]
+clap = "2.32.0"
 
 [lib]
 name = "filetree"
