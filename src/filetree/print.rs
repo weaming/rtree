@@ -48,7 +48,7 @@ pub fn print_file_node_tree(
             }
 
             prefix.push(SPACE_THREE);
-            print_file_node_tree(x, prefix, depth + 1, level, human);
+            print_file_node_tree(x, &mut prefix.to_vec(), depth + 1, level, human);
 
             prefix.pop();
             prefix.pop();
