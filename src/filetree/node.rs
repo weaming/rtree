@@ -34,15 +34,15 @@ pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> 
         return None;
     }
 
-    let abs_path_str = Path::new(&path_str)
+    let abs_path_string = Path::new(&path_str)
         .canonicalize()
         .unwrap()
         .to_str()
         .unwrap()
         .to_owned();
-    let path = Path::new(&abs_path_str);
+    let path = Path::new(&abs_path_string);
 
-    let size = get_file_size(&abs_path_str);
+    let size = get_file_size(&abs_path_string);
     let human_size = get_file_human_size(&path_str);
 
     let rv = FileNode {
@@ -53,7 +53,7 @@ pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> 
             .to_str()
             .unwrap()
             .to_owned(),
-        abs_path: String::from(&*abs_path_str),
+        abs_path: String::from(&*abs_path_string),
         rel_path: path
             .strip_prefix(root)
             .unwrap_or(Path::new(""))
@@ -84,7 +84,7 @@ pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> 
         // iginore dir metadata space
         rv_rc.size.set(0f64);
 
-        let files = fs::read_dir(&abs_path_str).unwrap();
+        let files = fs::read_dir(&abs_path_string).unwrap();
         for f in files {
             let name = &f.unwrap().file_name();
             let abs_path = path.join(name).to_str().unwrap().to_owned();
