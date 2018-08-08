@@ -119,7 +119,7 @@ pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> 
     rv_rc
         .children
         .borrow_mut()
-        .sort_by(|a, b| a.total_size.partial_cmp(&b.total_size).unwrap());
+        .sort_by(|a, b| a.total_size.partial_cmp(&b.total_size).unwrap().reverse());
     Some(rv_rc)
 }
 
