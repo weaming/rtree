@@ -29,5 +29,5 @@ pub fn human_size(mut s: f64, factor: f64) -> String {
         s /= factor;
         unit = "TB";
     }
-    format!("{}{}", s, unit)
+    format!("{:.2}{}", s, unit)
 }
