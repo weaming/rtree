@@ -67,7 +67,7 @@ fn print_node(node: &FileNode, human: bool, depth: u64) {
         repeat(SPACE_FOUR)
             .take((depth - 1) as usize)
             .collect::<String>(),
-        node.rel_path,
+        node.name,
         get_size_text(node.total_size.get(), human)
     );
 }
