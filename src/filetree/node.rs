@@ -84,34 +84,42 @@ pub fn new_file_node(path_str: &String, root: &String) -> Option<Arc<FileNode>> 
         // iginore dir metadata space
         rv_rc.size.set(0f64);
 
-        let files = fs::read_dir(&abs_path_string).unwrap();
-        for f in files {
-            let name = &f.unwrap().file_name();
-            let abs_path = path.join(name).to_str().unwrap().to_owned();
+        match fs::read_dir(&abs_path_string) {
+            Ok(files) => {
+                for f in files {
+                    let name = &f.unwrap().file_name();
+                    let abs_path = path.join(name).to_str().unwrap().to_owned();
 
-            let child_node = new_file_node(&abs_path, root).unwrap();
-            let child_node_arc = Arc::new(child_node);
+                    match new_file_node(&abs_path, root) {
+                        Some(child_node) => {
+                            let child_node_arc = Arc::new(child_node);
 
-            if is_dir(&abs_path) {
-                rv_rc
-                    .children
-                    .borrow_mut()
-                    .push(Arc::clone(&child_node_arc));
-                rv_rc.dirs.borrow_mut().push(Arc::clone(&child_node_arc));
-            } else if is_file(&abs_path) {
-                rv_rc
-                    .children
-                    .borrow_mut()
-                    .push(Arc::clone(&child_node_arc));
-                rv_rc.files.borrow_mut().push(Arc::clone(&child_node_arc));
+                            if is_dir(&abs_path) {
+                                rv_rc
+                                    .children
+                                    .borrow_mut()
+                                    .push(Arc::clone(&child_node_arc));
+                                rv_rc.dirs.borrow_mut().push(Arc::clone(&child_node_arc));
+                            } else if is_file(&abs_path) {
+                                rv_rc
+                                    .children
+                                    .borrow_mut()
+                                    .push(Arc::clone(&child_node_arc));
+                                rv_rc.files.borrow_mut().push(Arc::clone(&child_node_arc));
 
-                match &*child_node_arc.extension {
-                    "jpg" | "jpeg" | "png" | "gif" | "bmp" => {
-                        rv_rc.images.borrow_mut().push(Arc::clone(&child_node_arc))
+                                match &*child_node_arc.extension {
+                                    "jpg" | "jpeg" | "png" | "gif" | "bmp" => {
+                                        rv_rc.images.borrow_mut().push(Arc::clone(&child_node_arc))
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        None => {}
                     }
-                    _ => {}
                 }
             }
+            Err(e) => println!("{}", e),
         }
     }
 
